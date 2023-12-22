@@ -92,7 +92,7 @@ local function compose_sync_up_command(project_path, destination_path, ignorefil
     -- read ignore files append lines without ! with --include
     local include, exclude = create_filters(ignorefile_paths)
 
-    return "rsync -varz --delete" .. include .. exclude .. "-f'- .nvim' " .. project_path .. " " .. destination_path
+    return "rsync -varz" .. include .. exclude .. "-f'- .nvim' " .. project_path .. " " .. destination_path
 end
 
 --- Sync project to remote
