@@ -31,9 +31,8 @@ local function safe_sync(command, on_start, on_exit)
             -- skip when function reports empty error
             if vim.inspect(output) ~= vim.inspect({ "" }) then
                 log.info(string.format("safe_sync command: '%s', on_stderr: '%s'", command, vim.inspect(output)))
+                config.values.on_stderr(output, command)
             end
-
-            config.values.on_stderr(output, command)
         end,
 
         -- job done executing
