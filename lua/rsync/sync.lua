@@ -113,36 +113,45 @@ function sync.sync_up(report_error)
 
             vim.fn.jobstop(current_status.job_id)
         end
-        local command =
-            compose_sync_up_command(config_table.project_path, config_table.remote_path, config_table.ignorefile_paths)
-        safe_sync(command, function(res)
-            project:run(function(project_config)
-                _RsyncProjectConfigs[project_config.project_path].status.project.state = ProjectSyncStates.SYNC_UP
-                _RsyncProjectConfigs[project_config.project_path].status.project.job_id = res
-            end)
-        end, function(code)
-            -- ignore stopped job. (SIGTERM or SIGKILL)
-            if code == 143 or code == 137 then
+
+        -- Ensure remote_path is a list of paths
+        local remote_paths = config_table.remote_path
+        if type(remote_paths) ~= "table" then
+            remote_paths = { remote_paths }
+        end
+
+        for _, remote_path in ipairs(remote_paths) do
+            local command =
+                compose_sync_up_command(config_table.project_path, remote_path, config_table.ignorefile_paths)
+            safe_sync(command, function(res)
                 project:run(function(project_config)
-                    _RsyncProjectConfigs[project_config.project_path].status.project.state = ProjectSyncStates.STOPPED
+                    _RsyncProjectConfigs[project_config.project_path].status.project.state = ProjectSyncStates.SYNC_UP
+                    _RsyncProjectConfigs[project_config.project_path].status.project.job_id = res
+                end)
+            end, function(code)
+                -- ignore stopped job. (SIGTERM or SIGKILL)
+                if code == 143 or code == 137 then
+                    project:run(function(project_config)
+                        _RsyncProjectConfigs[project_config.project_path].status.project.state =
+                            ProjectSyncStates.STOPPED
+                        _RsyncProjectConfigs[project_config.project_path].status.project.code = code
+                        _RsyncProjectConfigs[project_config.project_path].status.project.job_id = -1
+                    end)
+                    return
+                end
+                if code ~= 0 then
+                    log.error(string.format("on_exit called with code: '%d'", code))
+                end
+
+                project:run(function(project_config)
+                    _RsyncProjectConfigs[project_config.project_path].status.project.state = ProjectSyncStates.DONE
                     _RsyncProjectConfigs[project_config.project_path].status.project.code = code
                     _RsyncProjectConfigs[project_config.project_path].status.project.job_id = -1
                 end)
-                return
-            end
-            if code ~= 0 then
-                log.error(string.format("on_exit called with code: '%d'", code))
-            end
-
-            project:run(function(project_config)
-                _RsyncProjectConfigs[project_config.project_path].status.project.state = ProjectSyncStates.DONE
-                _RsyncProjectConfigs[project_config.project_path].status.project.code = code
-                _RsyncProjectConfigs[project_config.project_path].status.project.job_id = -1
             end)
-        end)
+        end
     end, report_error)
 end
-
 --- Sync file to remote
 --- @param filename string path to file to sync
 function sync.sync_up_file(filename)
